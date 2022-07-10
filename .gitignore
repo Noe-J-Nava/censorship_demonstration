@@ -1,0 +1,35 @@
+references/
+data/prism/
+notes/
+write up/
+tutorials/
+Output/
+Code/*.rds
+submissions/
+aaea2022_section/
+beamer/example.tex
+Asdasd.R
+
+
+## Gitgnorable bibliography auxiliary files (bibtex/biblatex/biber):
+*.bbl
+*.bcf
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+.Rproj.user
+.DS_Store
+
+## Latex gitignoring
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+*.toc
+*.snm
+*.out
+*.nav
+*.png
+*.jpg

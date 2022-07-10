@@ -1,0 +1,189 @@
+---
+title: "Illustrating the effect of censorship on a QUAIDS system"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setting-up the problem
+
+The following is just uploading the necessary libraries and setting the seed for our simulations
+
+```{r}
+set.seed(123)
+library(numDeriv) # To compute Hessian and Jacobian
+library(mvtnorm)  # To simulate a system of equations
+library(BB)       # To solver for the parameters of a system of equations
+```
+
+The following creates the dataset. Notice that we are simplifying the problem by assuming that the price index is equal to 1. Thus, our system is no longer non-linear, but it still can reproduce elasticities that follow the Cournot and the Engel aggregations.
+
+```{r}
+n <- 10000 # Number of observations
+
+# Generate random prices
+lnp1 <- rnorm(n, mean = 1, sd = 1)
+lnp2 <- rnorm(n, mean = 2, sd = 2)
+lnp3 <- rnorm(n, mean = 3, sd = 3)
+
+lnw <- rnorm(n, mean = 1, sd = 2) # Generate random expenditure
+
+# Parameters and parameter restrictions
+alpha1 <- .1
+alpha2 <- .2
+alpha3 <- 1 - alpha1 - alpha2
+
+beta1 <- .1
+beta2 <- .2
+beta3 <- - beta1 - beta2
+
+gamma11 <- .1
+gamma12 <- .12
+gamma13 <- - gamma11 - gamma12
+
+gamma21 <- gamma12
+gamma22 <- .22
+gamma23 <- - gamma21 - gamma22
+
+gamma31 <- gamma13
+gamma32 <- gamma23
+gamma33 <- - gamma31 - gamma32
+
+
+```
+
+For this particular example, I will assume that the variance of the shares 1 and 2 are idential at 2, but they are correlated $\rho = .6$.
+
+```{r}
+reducedSgima <- matrix(c(2,0.1,0.1,2), nrow = 2, ncol = 2)
+epsilon <- rmvnorm(n, rep(0, 2), sigma = reducedSgima) # Assuming normality
+eps1 <- epsilon[,1]
+eps2 <- epsilon[,2]
+eps3 <- -(eps1 + eps2)
+
+lnpindex <- 0 + alpha1*lnp1 + alpha2*lnp2 + alpha3*lnp3
+for(i in as.character(1:3)) {
+  for(j in as.character(1:3)) {
+    
+    gammaij <- get(paste0("gamma", i, j))
+    lnpi  <- get(paste0("lnp", i))
+    lnpj  <- get(paste0("lnp", j))
+    lnpindex <- lnpindex + 0.5*gammaij*lnpi*lnpj
+    
+  }
+}
+
+s1 <- alpha1 + gamma11*lnp1 + gamma12*lnp2 + gamma13*lnp3 + beta1*(lnw - lnpindex) + eps1
+s2 <- alpha2 + gamma21*lnp1 + gamma22*lnp2 + gamma23*lnp3 + beta2*(lnw - lnpindex) + eps2
+s3 <- alpha3 + gamma31*lnp1 + gamma32*lnp2 + gamma33*lnp3 + beta3*(lnw - lnpindex) + eps3
+data <- data.frame(s1, s2, s3, lnp1, lnp2, lnp3, lnw)
+```
+
+The following solves for the parameters.
+
+```{r}
+param0 <- rep(0, 7)
+param0 <- c(param0,
+            1,
+            0,
+            1)
+
+source('/Users/noejnava/Library/CloudStorage/OneDrive-UniversityofIllinois-Urbana/Drive/Projects/censorship_demonstration/code/aids.logLike.R')  
+
+optimOut0 <- BBoptim(par = param0,
+                     fn = aids.logLike,
+                     s1 = s1,
+                     s2 = s2,
+                     lnp1 = lnp1,
+                     lnp2 = lnp2,
+                     lnp3 = lnp3,
+                     lnw = lnw,
+                     method = 1,
+                     lower = c(rep(-Inf, 7), 0, -Inf, 0),
+                     upper = rep(Inf, 10),
+                     control = list(maximize = TRUE,
+                                    M = 1,
+                                    trace = TRUE,
+                                    maxit = 1000))
+```
+The following code estimates the elasticities with their respective standard errors using the delta method.
+
+```{r}
+source('/Users/noejnava/Library/CloudStorage/OneDrive-UniversityofIllinois-Urbana/Drive/Projects/censorship_demonstration/code/etas.estimation.R')
+# Function to calculate etas at their means
+etas0 <- etas.estimation(params = optimOut0$par[1:7],
+                         s1,
+                         s2,
+                         s3, 
+                         lnp1, 
+                         lnp2,
+                         lnp3)
+# Approximation of S.E. via Delta Method
+# Derivative of a etas.estimation() function.
+# This is R^p -> R^m where p is the number of parameters, and m is etas
+der <- jacobian(f = etas.estimation,
+                x = optimOut$par[1:7],
+                s1 = s1,
+                s2 = s2,
+                s3 = s3,
+                lnp1 = lnp1,
+                lnp2 = lnp2,
+                lnp3 = lnp3,
+                method = "simple")
+# Approximate hessian of the aids.logLike() function.
+# This is a mxm matrix that includes the sigmas in the Sigma matrix.
+hess <- hessian(x = optimOut$par,
+                aids.logLike,
+                s1 = s1,
+                s2 = s2,
+                lnp1 = lnp1,
+                lnp2 = lnp2,
+                lnp3 = lnp3,
+                lnw = lnw)
+hessReduced <- hess[1:7,1:7]
+vcov <- solve(t(hessReduced) %*% hessReduced) # To be used to calculate SE
+SE <- sqrt(diag(der %*% vcov %*% t(der)))
+SE <- matrix(SE, nrow = length(SE), ncol = 1)
+```
+
+A concern with the variables $s_1$, $s_2$, and $s_3$ is that they cannot be observed by the researcher. Instead, the researcher observes $s_m \in [0,1]$. This creates a problem as I now demonstrate.
+
+```{r}
+source('/Users/noejnava/Library/CloudStorage/OneDrive-UniversityofIllinois-Urbana/Drive/Projects/censorship_demonstration/code/obs.frm.lat.shr.R')
+S <- cbind(s1, s2, s3)
+S <- ifelse(S < 0, 0, S)
+denominator <- rowSums(S)
+S <- S/denominator
+s1_obs <- S[,1]
+s2_obs <- S[,2]
+s3_obs <- S[,3]
+
+optimOut1 <- BBoptim(par = param0,
+                     fn = aids.logLike,
+                     s1 = s1_obs,
+                     s2 = s2_obs,
+                     lnp1 = lnp1,
+                     lnp2 = lnp2,
+                     lnp3 = lnp3,
+                     lnw = lnw,
+                     method = 1,
+                     lower = c(rep(-Inf, 7), 0, -Inf, 0),
+                     upper = rep(Inf, 10),
+                     control = list(maximize = TRUE,
+                                    M = 1,
+                                    trace = TRUE,
+                                    maxit = 1000))
+etas1 <- etas.estimation(params = optimOut1$par[1:7],
+                         s1,
+                         s2,
+                         s3, 
+                         lnp1, 
+                         lnp2,
+                         lnp3)
+present.etas(etas0)
+present.etas(etas1)
+```
+
+
