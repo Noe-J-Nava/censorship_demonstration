@@ -54,7 +54,7 @@ gamma33 <- - gamma31 - gamma32
 
 ```
 
-For this particular example, I will assume that the variance of the shares 1 and 2 are idential at 2, but they are correlated $\rho = .6$.
+For this particular example, I will assume that the variance of the shares 1 and 2 are idential at 2, but they are correlated $\rho = .1$.
 
 ```{r}
 reducedSgima <- matrix(c(2,0.1,0.1,2), nrow = 2, ncol = 2)
@@ -90,9 +90,9 @@ param0 <- c(param0,
             0,
             1)
 
-source('/Users/noejnava/Library/CloudStorage/OneDrive-UniversityofIllinois-Urbana/Drive/Projects/censorship_demonstration/code/aids.logLike.R')  
+source('/Users/noe.nava/OneDrive - USDA/Drive/Projects/censorship_demonstration/code/aids.logLike.R')  
 
-optimOut0 <- BBoptim(par = param0,
+optimOut <- BBoptim(par = param0,
                      fn = aids.logLike,
                      s1 = s1,
                      s2 = s2,
@@ -111,9 +111,9 @@ optimOut0 <- BBoptim(par = param0,
 The following code estimates the elasticities with their respective standard errors using the delta method.
 
 ```{r}
-source('/Users/noejnava/Library/CloudStorage/OneDrive-UniversityofIllinois-Urbana/Drive/Projects/censorship_demonstration/code/etas.estimation.R')
+source('/Users/noe.nava/OneDrive - USDA/Drive/Projects/censorship_demonstration/code/etas.estimation.R')
 # Function to calculate etas at their means
-etas0 <- etas.estimation(params = optimOut0$par[1:7],
+etas0 <- etas.estimation(params = optimOut$par[1:7],
                          s1,
                          s2,
                          s3, 
@@ -151,7 +151,7 @@ SE <- matrix(SE, nrow = length(SE), ncol = 1)
 A concern with the variables $s_1$, $s_2$, and $s_3$ is that they cannot be observed by the researcher. Instead, the researcher observes $s_m \in [0,1]$. This creates a problem as I now demonstrate.
 
 ```{r}
-source('/Users/noejnava/Library/CloudStorage/OneDrive-UniversityofIllinois-Urbana/Drive/Projects/censorship_demonstration/code/obs.frm.lat.shr.R')
+source('/Users/noe.nava/OneDrive - USDA/Drive/Projects/censorship_demonstration/code/obs.frm.lat.shr.R')
 S <- cbind(s1, s2, s3)
 S <- ifelse(S < 0, 0, S)
 denominator <- rowSums(S)
@@ -182,6 +182,7 @@ etas1 <- etas.estimation(params = optimOut1$par[1:7],
                          lnp1, 
                          lnp2,
                          lnp3)
+source('/Users/noe.nava/OneDrive - USDA/Drive/Projects/censorship_demonstration/code/present.etas.R')
 present.etas(etas0)
 present.etas(etas1)
 ```

@@ -35,7 +35,7 @@ aids.logLike <- function(param, s1, s2, lnp1, lnp2, lnp3, lnw) {
   sig21 <- sig12
   sig22 <- param[10]
   
-  lnpindex <- 0 + a1*lnp1 + a2*lnp2 + a3*lnp3
+  lnpindex <- 5 + a1*lnp1 + a2*lnp2 + a3*lnp3
   for(i in as.character(1:3)) {
     for(j in as.character(1:3)) {
       
